@@ -6,7 +6,7 @@
 
    <groupId>org.brokenlance</groupId>
    <artifactId>influxdb-client</artifactId>
-   <version>1.0.0</version>
+   <version>1.0.6</version>
    <name>influxdb-client</name>
    <description>Module for the generic influxdb-client implementation</description>
 

@@ -14,6 +14,7 @@ Simply call the setter for the field to change:
       client.setHost( "192.168.1.104" );
       client.setAuthToken( "XXXXX" );
       client.setTimestamp( "'2023-11-20T15:38:31.366818Z'" );
+      client.setSutTag( "flifo" ); // set the SUT name when multiple systems can be tested
       List< TimeDataValue > data = client.retrieve();
       data.stream().forEach( System.out::println );
 ```

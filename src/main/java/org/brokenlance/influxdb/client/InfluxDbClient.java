@@ -23,15 +23,17 @@ public class InfluxDbClient
    private        String       url          = "http://localhost:8086";
    private        String       host         = "localhost";
    private        String       port         = "8086";
+   private        String       queryBase    = "SELECT value FROM http_req_duration WHERE time > ";
    private        String       query        = "SELECT value FROM http_req_duration WHERE time > ";
    private        String       timestamp    = "'2023-11-20T15:38:31.366818Z'";
-   private        String       order        = "ORDER BY time";
+   private        String       order        = " ORDER BY time";
    private        String       measurement  = "response-time-data";
-   private        String       token        = "_QUrkqZvVPM2X3OnuQJ7dfWT62QaOhC3072OdD-ER_Z7Vxcuw9aTN7dSo9tAaOeEVpNfAszU41CRUl3T5nWlUA==";
+   private        String       token        = "Token _QUrkqZvVPM2X3OnuQJ7dfWT62QaOhC3072OdD-ER_Z7Vxcuw9aTN7dSo9tAaOeEVpNfAszU41CRUl3T5nWlUA==";
+   private        String       sutTag       = null;
    private        OkHttpClient client       = new OkHttpClient();
    private        Request      request      = new Request.Builder()
-                                                         .url( url + "/query?db=" + measurement + "&q=" + query + timestamp )
-                                                         .header( "Authorization", "Token " + token )
+                                                         .url( url + "/query?db=" + measurement + "&q=" + query + timestamp + order )
+                                                         .header( "Authorization", token )
                                                          .build();
 
    /**
@@ -76,6 +78,20 @@ public class InfluxDbClient
    }
 
    /**
+    * @return String -- builds the query string from the data values.
+    */
+   public String getQueryString()
+   {
+      StringBuilder q = new StringBuilder( query );
+
+      q.append( timestamp                        );
+      q.append( ( sutTag == null ) ? "" : sutTag );
+      q.append( order                            );
+
+      return q.toString();
+   }
+
+   /**
     * @param String -- the measurement or database
     */
    public void setMeasurement( String db )
@@ -84,19 +100,45 @@ public class InfluxDbClient
    }
 
    /**
-    * @param String -- the authorization token string
+    * @param String -- sets the order by clause to a particular value, null if not required.
     */
-   public void setAuthToken( String token )
+   public void setOrderBy( String order )
    {
-      this.token = token;
+      this.order = order;
    }
 
    /**
     * @param String -- the authorization token string
     */
+   public void setAuthToken( String token )
+   {
+      this.token = "Token " + token;
+   }
+
+   /**
+    * @param String -- the timestamp from which all data values after will be retrieved
+    * Note that this value (along with all values in influx) should be single-quoted.
+    */
    public void setTimestamp( String timestamp )
    {
-      this.timestamp = timestamp;
+      if( timestamp != null && !timestamp.strip().isEmpty() )
+      {
+         this.timestamp = "'" + timestamp.replaceAll( "\"", "" ) + "'";
+      }
+      else
+      {
+         this.timestamp = "'2023-11-20T15:38:31.366818Z'";
+      }
+   }
+
+   /**
+    * @param String -- the System Under Test (SUT) tag name.
+    * In the event that there are multiple systems being tested, we only want to pull out time data points
+    * for the SUT.
+    */
+   public void setSutTag( String tag )
+   {
+      this.sutTag = " AND sut = '" + tag + "'";
    }
 
    /**
@@ -104,9 +146,16 @@ public class InfluxDbClient
     */
    private void buildRequest()
    {
+      StringBuilder u = new StringBuilder( url );
+
+      u.append( "/query?db="     );
+      u.append( measurement      );
+      u.append( "&q="            );
+      u.append( getQueryString() );
+
       request = new Request.Builder()
-                           .url( url + "/query?db=" + measurement + "&q=" + query + timestamp )
-                           .header( "Authorization", "Token " + token )
+                           .url( u.toString() )
+                           .header( "Authorization", token )
                            .build();
    }
 
@@ -119,6 +168,8 @@ public class InfluxDbClient
       List< TimeDataValue > values = null;
 
       buildRequest();
+
+      log.info( "the request is: {}", request );
 
       try( Response response = client.newCall( request ).execute() )
       {
